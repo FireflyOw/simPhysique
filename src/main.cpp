@@ -1,6 +1,11 @@
 #include "physique.hpp"
-#include <GLFW/glfw3.h>
+
+#include "imgui.h"
+#include "imgui_impl_glfw.h"
+#include "imgui_impl_opengl3.h"
+
 #include <glad/gl.h>
+#include <GLFW/glfw3.h>
 
 #include <cmath>
 #include <vector>
@@ -95,6 +100,15 @@ int main() {
     glfwGetFramebufferSize(window, &frameBufferWidth, &frameBufferHeight);
     glViewport(0, 0, frameBufferWidth, frameBufferHeight);
 
+    // Initialisation de ImGUI pour la création de l'interface
+    // et connection avec GLFW et OpenGL
+    IMGUI_CHECKVERSION();
+    ImGui::CreateContext();
+    ImGuiIO& io = ImGui::GetIO(); (void)io; 
+
+    ImGui_ImplGlfw_InitForOpenGL(window, true);
+    ImGui_ImplOpenGL3_Init("#version 330");
+
     // Compiler les shaders et les rassembler dans un programme
     GLuint vertexShader = compileShader(GL_VERTEX_SHADER, vertexShaderSource);
     GLuint fragmentShader = compileShader(GL_FRAGMENT_SHADER, fragmentShaderSource);
@@ -146,12 +160,43 @@ int main() {
     // Boucle principale tant que la fenêtre est pas fermée
     while (!glfwWindowShouldClose(window)) {
 
-        // On appelle les fonctions de simulation pour mettre à jour la position des corps
-        univers.LeapfrogStep();
-        
         // Definition de la couleur d'arrière-plan
         glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT);
+
+        // Création d'une nouvelle fenêtre d'interface
+        ImGui_ImplOpenGL3_NewFrame();
+        ImGui_ImplGlfw_NewFrame();
+        ImGui::NewFrame();
+
+        // Là on modifie notre fenêtre avec ce qu'on veut
+        ImGui::Begin("Infos de simulation");
+        
+        ImGui::Text("Nombre de Corps: %d", (int)listeCorps.size());
+        ImGui::Text("Pas de temps (dt): %d secondes", dt);
+        ImGui::Separator();
+
+        static int solveur = 0;
+        ImGui::Text("Choix du solveur:");
+        ImGui::RadioButton("Euler", &solveur, 0);
+        ImGui::SameLine();
+        ImGui::RadioButton("Leapfrog", &solveur, 1);
+        ImGui::Separator();
+
+        for (Corps& corps : listeCorps) {
+            ImGui::Text("%s", corps.nom.c_str());
+            ImGui::Text("  Distance soleil: %2e m", corps.position.norme());
+            ImGui::Text("  Vitesse: %.2e m/s",  corps.vitesse.norme());
+        }
+
+        ImGui::End();
+
+        ImGui::Render();
+        ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+
+        // On appelle les fonctions de simulation pour mettre à jour la position des corps
+        if (solveur == 0) univers.EulerStep();
+        else univers.LeapfrogStep();
 
         // On active nos shaders et nos points, et on les dessine
         glUseProgram(shaderProgram);
