@@ -1,2 +1,4 @@
-simPhysique
+imgui.ini
+.vscode/
+build/
 *.o
